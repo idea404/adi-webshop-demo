@@ -1,23 +1,23 @@
 # Meridian — a demo storefront for ADI Pay
 
-A four-SKU coffee shop, built to be read rather than deployed. Two commits tell
-the story: a shop that takes cards, then the same shop with a *Pay with ADI*
+A four-SKU coffee shop, built to be read rather than deployed. The commit history
+tells the story: a shop that takes cards, then the same shop with a *Pay with ADI*
 button. Everything else is identical.
 
 ```sh
+git clone https://github.com/idea404/adi-webshop-demo.git
+cd adi-webshop-demo
 bun install
 bun run dev        # http://localhost:5173
 ```
 
-## Reading it as a blog post
+There is a write-up at [`docs/blog-post.md`](docs/blog-post.md) with
+before-and-after screenshots and the steps an integration needs.
 
-`docs/blog-post.md` is a write-up of the same change: before-and-after screenshots,
-the steps an integration actually needs, and what finality means on this chain.
-Images live in `docs/images/`.
+## The versions
 
-## The two versions
-
-`git log` has two commits.
+`git log` has three commits: the card-only shop, the ADI payment method, and the
+blog post with two fixes the writing exposed.
 
 **First commit — card only.** Browse, add a bag, check out, get a receipt. Card
 validation is real; the processor is a 1.4 s mock in `src/lib/card.ts`.

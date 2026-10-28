@@ -247,7 +247,7 @@ No server-side order record, no webhooks, no inventory, no refunds, no rate feed
 ## Try it
 
 ```sh
-git clone <repo>
+git clone https://github.com/idea404/adi-webshop-demo.git
 cd adi-webshop-demo
 bun install
 bun run dev
