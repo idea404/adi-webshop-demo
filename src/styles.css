@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #010820;
+  --color-ink-soft: #0b1438;
+  --color-surface: #111c4a;
+  --color-paper: #fffdfa;
+  --color-sand: #fff9e1;
+  --color-blue: #013cff;
+  --color-blue-soft: #dce4ff;
+  --color-orange: #ff710a;
+  --color-burgundy: #3e000d;
+  --color-muted: #9aa4c7;
+
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --radius-plate: 1.75rem;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-ink text-paper font-sans antialiased;
+    /* One soft light from the top so the ink never reads as flat black. */
+    background-image: radial-gradient(120% 80% at 50% -20%, #101c4a 0%, #010820 55%);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: var(--color-blue);
+    color: var(--color-paper);
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-blue-soft);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  /* Label plate: the only "imagery" in the shop, so it carries the colour. */
+  .plate {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .plate::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(60% 40% at 20% 12%, rgb(255 255 255 / 0.22), transparent 70%),
+      linear-gradient(0deg, rgb(1 8 32 / 0.35), transparent 60%);
+    pointer-events: none;
+  }
+
+  .hairline {
+    border-color: rgb(220 228 255 / 0.14);
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-[rgb(220_228_255_/_0.16)] bg-[rgb(1_8_32_/_0.04)]
+      px-3.5 py-2.5 text-[15px] text-ink placeholder:text-ink/35
+      transition-colors duration-150;
+  }
+
+  .field:focus {
+    @apply border-blue/60 outline-none ring-4 ring-blue/10;
+  }
+
+  .field[data-invalid="true"] {
+    @apply border-burgundy/50 ring-4 ring-burgundy/10;
+  }
+
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-full
+      px-5 py-3 text-[14px] font-medium tracking-[-0.01em]
+      transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .btn-primary {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-full
+      bg-ink px-5 py-3 text-[14px] font-medium tracking-[-0.01em] text-paper
+      transition-all duration-150 hover:bg-ink-soft active:translate-y-px
+      disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .btn-quiet {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-full
+      border border-[rgb(220_228_255_/_0.2)] px-5 py-3 text-[14px] font-medium
+      tracking-[-0.01em] text-paper/85 transition-all duration-150
+      hover:border-paper/40 hover:text-paper disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .label {
+    @apply text-[11px] font-medium uppercase tracking-[0.18em];
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes veil {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+.animate-rise {
+  animation: rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-slide-in {
+  animation: slide-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-veil {
+  animation: veil 220ms ease-out both;
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
