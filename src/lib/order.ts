@@ -22,7 +22,9 @@ export interface Order {
   totalCents: number;
 }
 
-export type Payment = { method: "card"; reference: string };
+export type Payment =
+  | { method: "card"; reference: string }
+  | { method: "adi"; txHash: `0x${string}`; blockNumber: number };
 
 /** Readable, not secret: this is a receipt label, not an identifier anyone can act on. */
 export function newOrderId(): string {

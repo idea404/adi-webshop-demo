@@ -1,6 +1,7 @@
 import type { Order, Payment } from "../lib/order";
-import { usd } from "../lib/money";
-import { ArrowRightIcon, CheckIcon } from "./Icons";
+import { shortAddress, usd } from "../lib/money";
+import { explorerTx } from "../lib/adi";
+import { ArrowRightIcon, CheckIcon, ExternalIcon } from "./Icons";
 
 /** What the shop says after money moved. One page, no cart, no upsell. */
 export function ReceiptScreen({ order, payment, onShop }: { order: Order; payment: Payment; onShop: () => void }) {
@@ -11,9 +12,12 @@ export function ReceiptScreen({ order, payment, onShop }: { order: Order; paymen
           <CheckIcon className="h-5 w-5" />
         </span>
 
-        <h1 className="mt-5 font-display text-[clamp(2rem,5vw,2.9rem)] leading-[1.02]">Card charged</h1>
+        <h1 className="mt-5 font-display text-[clamp(2rem,5vw,2.9rem)] leading-[1.02]">
+          {payment.method === "card" ? "Card charged" : "Paid on ADI"}
+        </h1>
         <p className="mt-2 text-[14px] text-paper/55">
-          Order {order.id} · {usd(order.totalCents)} · settled immediately
+          Order {order.id} · {usd(order.totalCents)} ·{" "}
+          {payment.method === "card" ? "settled immediately" : `included in block ${payment.blockNumber} · testnet`}
         </p>
 
         <dl className="mt-8 space-y-2.5 border-t border-white/10 pt-5 text-[13px]">
@@ -29,8 +33,20 @@ export function ReceiptScreen({ order, payment, onShop }: { order: Order; paymen
         </dl>
 
         <div className="mt-8 border-t border-white/10 pt-5">
-          <p className="label text-paper/35">Reference</p>
-          <p className="mt-2 font-mono text-[12.5px] text-paper/65">{payment.reference}</p>
+          <p className="label text-paper/35">{payment.method === "card" ? "Reference" : "Transaction"}</p>
+          {payment.method === "card" ? (
+            <p className="mt-2 font-mono text-[12.5px] text-paper/65">{payment.reference}</p>
+          ) : (
+            <a
+              href={explorerTx(payment.txHash)}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1.5 font-mono text-[12.5px] text-blue-soft hover:underline"
+            >
+              {shortAddress(payment.txHash)}
+              <ExternalIcon className="h-3 w-3" />
+            </a>
+          )}
         </div>
 
         <button type="button" onClick={onShop} className="btn-quiet mt-8 w-full sm:w-auto">
