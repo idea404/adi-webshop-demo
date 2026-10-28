@@ -34,7 +34,12 @@ if (key) {
         case "wallet_switchEthereumChain":
         case "wallet_addEthereumChain":
           return null;
-        case "eth_sendTransaction": {
+        // Some libraries try the wallet namespace first, or retry with it when
+        // `eth_sendTransaction` rejects. Implementing it as an alias keeps the
+        // original error visible instead of a "method not supported" from the
+        // retry, which is how the real reason gets buried.
+        case "eth_sendTransaction":
+        case "wallet_sendTransaction": {
           const [tx] = (params ?? []) as {
             from: Address;
             to: Address;
@@ -45,24 +50,40 @@ if (key) {
             maxPriorityFeePerGas?: Hex;
             nonce?: Hex;
           }[];
-          if (!tx) throw { code: -32602, message: "eth_sendTransaction needs a transaction" };
+          if (!tx) throw { code: -32602, message: "a transaction is required" };
           if (tx.from.toLowerCase() !== account.address.toLowerCase()) {
             throw { code: 4100, message: "unauthorised sender" };
           }
 
-          const [nonce, gasPrice] = await Promise.all([
+          // Estimate gas and read the base fee rather than guessing either. ADI
+          // requires the sender's balance to cover the transaction's *maximum*
+          // fee, so a padded guess makes a wallet holding plenty of ADI fail
+          // validation even though the real cost was a fraction of it.
+          const [nonce, fees] = await Promise.all([
             rpc.getTransactionCount({ address: account.address }),
-            rpc.getGasPrice(),
+            rpc.estimateFeesPerGas(),
           ]);
+          const gas =
+            tx.gas !== undefined
+              ? BigInt(tx.gas)
+              : await rpc.estimateGas({
+                  account: account.address,
+                  to: tx.to,
+                  data: tx.data,
+                  value: tx.value ? BigInt(tx.value) : 0n,
+                });
+
           const signed = await account.signTransaction({
             chainId: ADI_TESTNET.id,
             to: tx.to,
             data: tx.data,
             value: tx.value ? BigInt(tx.value) : 0n,
             nonce,
-            gas: tx.gas ? BigInt(tx.gas) : 120_000n,
-            maxFeePerGas: gasPrice * 2n,
-            maxPriorityFeePerGas: 1_000_000_000n,
+            gas,
+            maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : fees.maxFeePerGas,
+            maxPriorityFeePerGas: tx.maxPriorityFeePerGas
+              ? BigInt(tx.maxPriorityFeePerGas)
+              : fees.maxPriorityFeePerGas,
             type: "eip1559",
           });
           // eth_sendTransaction returns a hash, not a signed blob: the wallet is

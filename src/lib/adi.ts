@@ -84,37 +84,76 @@ export class WalletError extends Error {
 }
 
 /**
- * Providers reject with `{ code, message }`, but viem wraps that in one or two
- * `cause` layers. Walk the chain for the first coded error so a rejection is
- * reported as a rejection and not as a paragraph of contract-call internals.
+ * Providers reject with `{ code, message }`, but that is never the whole story.
+ * viem wraps it in a `cause` chain, and the sentence that names the actual
+ * problem frequently sits in a `details` field rather than in any message. An
+ * unaffordable fee, for instance, arrives as "Invalid parameters were provided
+ * to the RPC method" with the real reason in `details`.
+ *
+ * Collect every code and every piece of prose in the chain, then pick the most
+ * specific thing available instead of the outermost wrapper.
  */
-function walkCauses(error: unknown): { code: number | undefined; message: string } {
+function collectCauses(error: unknown): { codes: number[]; prose: string[] } {
+  const codes: number[] = [];
+  const prose: string[] = [];
+  const seen = new Set<unknown>();
   let current: unknown = error;
-  let code: number | undefined;
-  let message = "";
-  for (let depth = 0; depth < 6 && current; depth++) {
-    if (typeof current === "object") {
-      if (code === undefined && "code" in current && typeof current.code === "number") code = current.code;
-      if (!message && "message" in current && typeof current.message === "string") message = current.message;
-      current = "cause" in current ? current.cause : undefined;
-    } else {
-      break;
-    }
+
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const record = current as Record<string, unknown>;
+    if (typeof record.code === "number") codes.push(record.code);
+    if (typeof record.message === "string") prose.push(record.message);
+    // `details` is where viem puts the RPC's own explanation.
+    if (typeof record.details === "string") prose.push(record.details);
+    current = "cause" in record ? record.cause : undefined;
   }
-  return { code, message };
+  if (current instanceof Error) prose.push(current.message);
+
+  return { codes, prose };
+}
+
+/** Wrapper phrases that describe plumbing rather than the problem. */
+const GENERIC_PHRASES = [
+  "does not support the requested method",
+  "invalid parameters were provided",
+  "an internal error was received",
+  "unable to perform request",
+  "http request failed",
+  "rpc request failed",
+  "json-rpc",
+  "double check you have provided",
+];
+
+/** One short sentence naming the problem, or an empty string if nothing better exists. */
+function specificMessage(prose: string[]): string {
+  const lines = prose.flatMap((entry) => entry.split("\n")).map((line) => line.trim());
+  const useful = lines.filter((line) => {
+    if (line.length === 0) return false;
+    const lower = line.toLowerCase();
+    return !GENERIC_PHRASES.some((phrase) => lower.includes(phrase)) && !lower.startsWith("url:");
+  });
+  // Later entries sit nearer the cause, so they say more.
+  const chosen = useful.at(-1) ?? "";
+  return chosen.slice(0, 200);
 }
 
 function toWalletError(error: unknown): WalletError {
-  const { code, message } = walkCauses(error);
-  if (code === 4001 || /user rejected|rejected the request/i.test(message)) {
+  const { codes, prose } = collectCauses(error);
+  const joined = prose.join(" ");
+
+  if (codes.includes(4001) || /user rejected|rejected the request/i.test(joined)) {
     return new WalletError("You rejected the request in your wallet.", 4001);
   }
-  if (code === -32000 || /insufficient funds/i.test(message)) {
-    return new WalletError("Not enough ADI to cover the network fee.", code);
+  if (/insufficient funds|does not have enough funds|exceeds the configured cap/i.test(joined)) {
+    return new WalletError("Not enough ADI in this wallet to cover the network fee.", codes[0]);
   }
-  // Wallet and node messages can be paragraphs; the panel needs one sentence.
-  const short = message.split("\n")[0]?.slice(0, 180).trim();
-  return new WalletError(short || "The wallet request failed.", code);
+  if (/nonce too low|already known|replacement transaction/i.test(joined)) {
+    return new WalletError("The wallet and the chain disagree on the next transaction. Try again.", codes[0]);
+  }
+
+  const message = specificMessage(prose);
+  return new WalletError(message || "The wallet request failed.", codes[0]);
 }
 
 async function switchToAdi(provider: Eip1193Provider, address: Address): Promise<void> {

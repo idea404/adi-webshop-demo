@@ -9,6 +9,12 @@ bun install
 bun run dev        # http://localhost:5173
 ```
 
+## Reading it as a blog post
+
+`docs/blog-post.md` is a write-up of the same change: before-and-after screenshots,
+the steps an integration actually needs, and what finality means on this chain.
+Images live in `docs/images/`.
+
 ## The two versions
 
 `git log` has two commits.
@@ -76,6 +82,11 @@ the UI must handle anyway.
 Never set that variable in a deploy. A private key in a client bundle is a
 private key.
 
+The dev wallet estimates gas and fees from the chain instead of guessing. That
+matters more than it sounds: ADI requires the sender's balance to cover the
+transaction's *maximum* fee, so a hardcoded `maxFeePerGas` makes a wallet holding
+plenty of ADI fail validation.
+
 ### The flow the payer sees
 
 1. **Connect.** Request accounts, then switch to ADI Chain, adding it to the
@@ -112,9 +123,14 @@ paid order would frighten the customer.
   mUSDC is 1:1 with the dollar, so the arithmetic stays exact. A production shop
   that wants to settle in ADI would quote against an oracle inside the payment
   intent's expiry window.
-- **Errors are one sentence.** Wallet providers bury a rejection inside two
-  layers of viem `cause`; `walkCauses` in `src/lib/adi.ts` digs out the code and
-  the panel says "You rejected the request in your wallet."
+- **Errors are one sentence.** Wallet providers bury the real reason inside two
+  layers of viem `cause`, and often in a `details` field rather than a message.
+  `collectCauses` in `src/lib/adi.ts` walks the whole chain, skips wrapper
+  phrases, and surfaces the specific one: "You rejected the request in your
+  wallet" or "Not enough ADI in this wallet to cover the network fee."
+- **Implement `wallet_sendTransaction` too, if you write a provider.** viem
+  retries with it when `eth_sendTransaction` rejects, and an unimplemented retry
+  replaces the original error with a useless one.
 - **Native `<dialog>`.** Focus trapping, Escape, inertness and backdrop come
   from the platform.
 
